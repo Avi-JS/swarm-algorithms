@@ -1,0 +1,636 @@
+using System;
+using System.Collections.Generic;
+using System.Diagnostics;
+using System.Globalization;
+using System.IO;
+using System.Linq;
+using System.Reflection;
+using System.Runtime.CompilerServices;
+using System.Security;
+using System.Text;
+using System.Threading.Tasks;
+using Microsoft.VisualBasic;
+using Rhino;
+using Rhino.Geometry;
+using Rhino.DocObjects;
+using Rhino.Collections;
+using GH_IO;
+using GH_IO.Serialization;
+using Grasshopper;
+using Grasshopper.Kernel;
+using Grasshopper.Kernel.Data;
+using Grasshopper.Kernel.Types;
+using System.Xml;
+using System.Xml.Linq;
+using System.Data;
+using System.Drawing;
+using System.Collections;
+using System.Windows.Forms;
+using System.Runtime.InteropServices;
+
+
+
+/// <summary>
+
+/// ''' This class will be instantiated on demand by the Script component.
+
+/// ''' </summary>
+public class Script_Instance : GH_ScriptInstance
+{
+
+    /// <summary>Print a String to the [Out] Parameter of the Script component.</summary>
+  ///   ''' <param name="text">String to print.</param>
+    private void Print(string text)
+    {
+    }
+    /// <summary>Print a formatted String to the [Out] Parameter of the Script component.</summary>
+  ///   ''' <param name="format">String format.</param>
+  ///   ''' <param name="args">Formatting parameters.</param>
+    private void Print(string format, params object[] args)
+    {
+    }
+    /// <summary>Print useful information about an object instance to the [Out] Parameter of the Script component. </summary>
+  ///   ''' <param name="obj">Object instance to parse.</param>
+    private void Reflect(object obj)
+    {
+    }
+    /// <summary>Print the signatures of all the overloads of a specific method to the [Out] Parameter of the Script component. </summary>
+  ///   ''' <param name="obj">Object instance to parse.</param>
+    private void Reflect(object obj, string method_name)
+    {
+    }
+
+    /// <summary>Gets the current Rhino document.</summary>
+    private readonly RhinoDoc RhinoDocument;
+    /// <summary>Gets the Grasshopper document that owns this script.</summary>
+    private readonly GH_Document GrasshopperDocument;
+    /// <summary>Gets the Grasshopper script component that owns this script.</summary>
+    private readonly IGH_Component Component;
+    /// <summary>
+  ///   ''' Gets the current iteration count. The first call to RunScript() is associated with Iteration=0.
+  ///   ''' Any subsequent call within the same solution will increment the Iteration count.
+  ///   ''' </summary>
+    private readonly int Iteration;
+
+    /// <summary>
+  ///   ''' This procedure contains the user code. Input parameters are provided as ByVal arguments,
+  ///   ''' Output parameter are ByRef arguments. You don't have to assign output parameters,
+  ///   ''' they will have default values.
+  ///   ''' </summary>
+    private void RunScript(bool init, int subit, DataTree<Point3d> startPt, DataTree<Vector3d> startDir, Point3d world_Bnds, Mesh mesh_Obstacle, List<Mesh> mesh_Zone, DataTree<double> mesh_Zone_Weight, List<double> maxSpeed, List<double> maxForce, List<double> sep_Dist, List<double> ali_Dist, List<double> coh_Dist, List<double> sep_Weight, List<double> ali_Weight, List<double> coh_Weight, List<Point3d> attractor_Pt, List<Point3d> repeller_Pt, List<Curve> attractor_Ln, List<double> attractor_Dist, List<double> repeller_Dist, List<double> attractor_Ln_Dist, List<double> attractor_Weight, List<double> repeller_Weight, List<double> attractor_Ln_Weight, List<Curve> accelerator_Ln, List<double> accelerator_Ln_Dist, List<double> accelerator_Ln_Weight, ref object AA, ref object AB, ref object AC, ref object AD, ref object AE, ref object AF, ref object AG, ref object BA, ref object BB, ref object BC, ref object BD, ref object BE, ref object BF, ref object BG)
+    {
+        List<point3d> ptsFlock1 = new List<point3d>();
+        List<point3d> ptsFlock2 = new List<point3d>();
+        list<vector3d> dirFlock1 = new list<vector3d>();
+        list<vector3d> dirFlock2 = new list<vector3d>();
+        list<vector3d> accFlock1 = new list<vector3d>();
+        list<vector3d> accFlock2 = new list<vector3d>();
+        list<vector3d> sepFlock1 = new list<vector3d>();
+        list<vector3d> sepFlock2 = new list<vector3d>();
+        list<vector3d> aliFlock1 = new list<vector3d>();
+        list<vector3d> aliFlock2 = new list<vector3d>();
+        list<vector3d> cohFlock1 = new list<vector3d>();
+        list<vector3d> cohFlock2 = new list<vector3d>();
+        list<vector3d> attFlock1 = new list<vector3d>();
+        list<vector3d> attFlock2 = new list<vector3d>();
+
+        if (init)
+        {
+            swarms = new MultiFlock();
+            attractorPt = new datatree<point3d>();
+            for (int32 i = 0; i <= 1; i++)
+            {
+                setup(i, startPt, startDir, world_Bnds, mesh_Zone, maxSpeed, maxForce, sep_Dist, coh_Dist, ali_Dist, attractor_Dist, repeller_Dist, attractor_Ln_Dist, sep_Weight, ali_Weight, coh_Weight, attractor_Weight, repeller_Weight, attractor_Ln_Weight, accelerator_Ln_Dist, accelerator_Ln_Weight, mesh_Zone_Weight);
+                setupAttractors(i, startPt);
+            }
+        }
+
+        for (int32 i = 0; i <= swarms.flocks[0].boids.count - 1; i++)
+        {
+            boid bo = swarms.flocks[0].boids[i];
+            attractorPt.branch(1)(i) = bo.loc;
+            ptsFlock1.add(bo.loc);
+            dirFlock1.add(bo.vel);
+            accFlock1.add(bo.acc2);
+            sepFlock1.add(bo.sep);
+            aliFlock1.add(bo.ali);
+            cohFlock1.add(bo.coh);
+            attFlock1.add(bo.att);
+        }
+
+        for (int32 i = 0; i <= swarms.flocks[1].boids.count - 1; i++)
+        {
+            boid bo = swarms.flocks[1].boids[i];
+            attractorPt.branch(0)(i) = bo.loc;
+            ptsFlock2.add(bo.loc);
+            dirFlock2.add(bo.vel);
+            accFlock2.add(bo.acc2);
+            sepFlock2.add(bo.sep);
+            aliFlock2.add(bo.ali);
+            cohFlock2.add(bo.coh);
+            attFlock2.add(bo.att);
+        }
+
+
+        meshObstacle = mesh_Obstacle;
+        // repellerPt = repeller_Pt
+        // acceleratorLn = accelerator_Ln
+        // attractorLn = attractor_Ln
+
+        for (int32 i = 1; i <= subit; i++)
+            swarms.run();
+
+        AA = ptsFlock1;
+        AB = dirFlock1;
+        AC = accFlock1;
+        AD = sepFlock1;
+        AE = aliFlock1;
+        AF = cohFlock1;
+        AG = attFlock1;
+        BA = ptsFlock2;
+        BB = dirFlock2;
+        BC = accFlock2;
+        BD = sepFlock2;
+        BE = aliFlock2;
+        BF = cohFlock2;
+        BG = attFlock2;
+    }
+
+    // <Custom additional code> 
+
+    private MultiFlock swarms = new MultiFlock();
+    private Flock flck = new Flock();
+
+    public static point3d worldBnds = new point3d();
+    public static Curve crvBoundary;
+    public static Mesh meshObstacle;
+    public static list<Mesh> meshZone;
+
+
+    public static Datatree<point3d> attractorPt = new Datatree<point3d>();
+    // Public Shared repellerPt As New datatree(Of point3d)
+    // Public Shared attractorLn As New datatree(Of curve)
+    // Public Shared acceleratorLn As New datatree(Of curve)
+
+    public static list<double> sepDist;
+    public static list<double> aliDist;
+    public static list<double> cohDist;
+    public static list<double> attDist;
+    public static list<double> repDist;
+    public static list<double> attLnDist;
+    public static list<double> accLnDist;
+
+    public static list<double> sepWeight;
+    public static list<double> aliWeight;
+    public static list<double> cohWeight;
+    public static list<double> attWeight;
+    public static list<double> repWeight;
+    public static list<double> attLnWeight;
+    public static list<double> accLnWeight;
+    public static list<double> meshZoneWeight;
+
+
+    public void setup(int32 id, datatree<point3d> startPt, datatree<vector3d> startDir, point3d world_Bnds, list<mesh> mesh_Zone, list<double> maxSpeed, list<double> maxForce, list<double> sep_Dist, list<double> coh_Dist, list<double> ali_Dist, list<double> attractor_Dist, list<double> repeller_Dist, list<double> attractor_Ln_Dist, list<double> sep_Weight, list<double> ali_Weight, list<double> coh_Weight, list<double> attractor_Weight, list<double> repeller_Weight, list<double> attractor_Ln_Weight, list<double> accelerator_Ln_Dist, list<double> accelerator_Ln_Weight, datatree<double> mesh_Zone_Weight)
+    {
+        flck = new Flock();
+
+        worldBnds = world_Bnds;
+        meshZone = mesh_Zone;
+
+        sepDist = sep_Dist;
+        aliDist = ali_Dist;
+        cohDist = coh_Dist;
+        attDist = attractor_Dist;
+        repDist = repeller_Dist;
+        attLnDist = attractor_Ln_Dist;
+        accLnDist = accelerator_Ln_Dist;
+
+        sepWeight = sep_Weight;
+        aliWeight = ali_Weight;
+        cohWeight = coh_Weight;
+        attWeight = attractor_Weight;
+        repWeight = repeller_Weight;
+        attLnWeight = attractor_Ln_Weight;
+        accLnWeight = accelerator_Ln_Weight;
+        meshZoneWeight = mesh_Zone_Weight.branch(id);
+
+        // Add an initial set of boids into the system
+        for (int32 i = 0; i <= startPt.branch(id).count - 1; i++)
+            flck.addBoid(new Boid(startPt.branch(id)(i), maxSpeed[id], maxForce[id], startDir.branch(id)(i)));
+        swarms.addFlock(flck);
+    }
+
+    public void setupAttractors(int32 id, DataTree<point3d> startPt)
+    {
+        int32 i;
+
+        if (id == 0)
+            i = 1;
+        else if (id == 1)
+            i = 0;
+
+        GH_path pth = new GH_path(id);
+        attractorPt.addrange(startPt.branch(i), pth);
+    }
+
+    public class MultiFlock
+    {
+        public list<Flock> flocks = new list<Flock>();
+
+        public void run()
+        {
+            for (int32 i = 0; i <= flocks.count - 1; i++)
+            {
+                Flock fl = flocks[i];
+                fl.runFlock(i);
+            }
+        }
+
+        public void addFlock(flock fl)
+        {
+            flocks.add(fl);
+        }
+    }
+
+
+    // The flock (a list of Boid object)
+    public class Flock
+    {
+        public list<Boid> boids = new list<Boid>(); // An array list for all the boids
+
+        public void runFlock(int32 partNum)
+        {
+            for (int i = 0; i <= boids.count - 1; i++)
+            {
+                boid bo = boids[i];
+                bo.runBoid(boids, partNum); // Passing the entire list of boids to each boid individually
+            }
+        }
+
+        public void addBoid(boid bo)
+        {
+            boids.add(bo);
+        }
+    }
+
+    // The Boid Class
+    public class Boid
+    {
+        public point3d loc = new point3d();
+        public vector3d vel = new vector3d();
+        private vector3d acc = new vector3d();
+
+        public vector3d sep = new vector3d();
+        public vector3d ali = new vector3d();
+        public vector3d coh = new vector3d();
+        public vector3d att = new vector3d();
+        public vector3d acc2 = new vector3d();
+
+        private double r = -5;
+        private double inv = -1;
+        private double maxforce;   // Maximum steering force
+        private double maxspeed;   // Maximum speed
+
+        public Boid(point3d l, double ms, double mf, vector3d v)
+        {
+            acc = new vector3d(0, 0, 0);
+            vel = v / (double)v.Length;
+            loc = l;
+            maxspeed = ms;
+            maxforce = mf;
+        }
+
+        public void runBoid(list<boid> boids, int32 particleNum)
+        {
+            flock(boids, particleNum);
+            update();
+            bounds();
+            obstacles(meshObstacle);
+            zones();
+        }
+
+        public void bounds()
+        {
+            if ((loc.x < -r))
+                vel.X *= inv;
+            else if ((loc.x > worldBnds.x + r))
+                vel.X *= inv;
+
+            if ((loc.y < -r))
+                vel.Y *= inv;
+            else if ((loc.Y > worldBnds.y + r))
+                vel.Y *= inv;
+
+            if ((loc.Z < -r))
+                vel.Z *= inv;
+            else if ((loc.Z > worldBnds.z + r))
+                vel.Z *= inv;
+        }
+
+        public void obstacles(mesh obstacle)
+        {
+            point3d ptOnMesh = new point3d();
+            int32 withinBnd = obstacle.ClosestPoint(loc, ptOnMesh, 4);
+            if (withinBnd != -1)
+            {
+                line ln = new Line(ptOnMesh, loc);
+                vector3d normalAtPt = new Vector3d(ln.UnitTangent);
+                vector3d unitVel = vel; unitVel.Unitize();
+                double dotpro = Vector3d.Multiply(unitVel, normalAtPt);
+                vel += -1 * maxspeed * (dotpro * normalAtPt);
+
+                if (ln.Length < 1)
+                    loc = ptOnMesh + normalAtPt * maxspeed;
+            }
+        }
+
+        public void zones()
+        {
+            AreaMassProperties massProps = AreaMassProperties.Compute(meshZone[4]);
+            vector3d target = new vector3d(0, 0, 0);
+            point3d ptOnMesh;
+            int32 withinBnd1 = meshZone[0].closestPoint(loc, ptOnMesh, 1);
+            int32 withinBnd2 = meshZone[1].closestPoint(loc, ptOnMesh, 1);
+            int32 withinBnd3 = meshZone[2].closestPoint(loc, ptOnMesh, 1);
+            int32 withinBnd4 = meshZone[3].closestPoint(loc, ptOnMesh, 1);
+
+            if (withinBnd1 != -1)
+            {
+                point3d centerPt = massProps.Centroid;
+                target = centerPt - loc;
+                vel += target;
+                vel *= meshZoneWeight[0];
+            }
+            else if (withinBnd2 != -1)
+                vel *= meshZoneWeight[1];
+            else if (withinBnd3 != -1)
+                vel *= meshZoneWeight[2];
+            else if (withinBnd4 != -1)
+                vel *= meshZoneWeight[3];
+        }
+
+        // Accumulate New acceleration each time based on three rules
+        public void flock(list<boid> boids, int32 particleNumber)
+        {
+            sep = separate(boids, particleNumber); // Separation
+            ali = align(boids, particleNumber);  // Alignment
+            coh = cohesion(boids, particleNumber); // Cohesion
+
+            if ((attractorPt.branch(particleNumber) != null) & (attWeight[particleNumber] != 0))
+                att = attraction(boids, particleNumber, attractorPt.branch(particleNumber), attDist[particleNumber], true, 1);
+
+            // Dim rep As vector3d = attraction(boids, repellerPt.branch(particleNumber), repDist, False, -1)
+            // Dim accLn As vector3d = acceleration(boids, acceleratorLn.branch(particleNumber), accLnDist)
+
+            // Arbitrarily weight these forces
+            sep *= sepWeight[particleNumber];
+            ali *= aliWeight[particleNumber];
+            coh *= cohWeight[particleNumber];
+            att *= attWeight[particleNumber];
+            // rep *= repWeight
+            // attLn *= attLnWeight
+            // accLn *= accLnWeight
+            // Add the force vectors to acceleration
+            acc += sep;
+            acc += ali;
+            acc += coh;
+            acc += att;
+            // acc += rep
+            // acc += attLn
+            // acc += accLn
+
+            acc2 = acc;
+        }
+
+        // Method to update location
+        public void update()
+        {
+            // Update velocity
+            vel += acc;
+            // Limit speed
+            if (vel.Length > maxspeed)
+                vel = (vel / (double)vel.Length) * maxspeed;
+            loc += vel;
+            // Reset acceleration to 0 each cycle
+            acc = new vector3d(0, 0, 0);
+        }
+
+        // Calculate steering vector
+        // Takes a second argument, If True, it slows down as it approaches the target
+        private vector3d steer(point3d target, bool turnaround, int32 particleNumber)
+        {
+            vector3d desired = target - loc; // A vector pointing from the location to the target
+            double d = desired.Length; // Distance from the target is the magnitude of the vector
+
+            // If the distance is greater than 0, calc steering (otherwise return zero vector)
+            if ((d > 0))
+            {
+                // Normalize desired
+                desired.Unitize();
+                // Tow options for desired vector magnitude (1 - -based on distance, 2 -- maxspeed)
+                if (((turnaround) & (d < repDist[particleNumber])))
+                {
+                    desired *= -1;
+                    desired *= d;
+                }
+                else
+                    desired *= maxspeed;
+
+                // Steering = Desired minus Velocity
+                steer = desired - vel;
+                // Limit to maximum steering force
+                if (steer.Length > maxforce)
+                    steer = (steer / (double)steer.Length) * maxforce;
+            }
+            else
+                steer = new Vector3d(0, 0, 0);
+            return steer;
+        }
+
+        // Separation
+        // Method checks for nearby boids and steers away
+        private vector3d separate(list<boid> boids, int32 particleNumber)
+        {
+            double desiredseparation = sepDist[particleNumber];
+            vector3d steer = new vector3d(0, 0, 0);
+            int count = 0;
+            // For every boid in the system, check if its too close
+            for (int i = 0; i <= boids.count - 1; i++)
+            {
+                boid other = boids[i];
+                double d = loc.DistanceTo(other.loc);
+                // Dim s As Double = 2.0
+
+                // If the distance is greater than 0 and less than x (0 when you're yourself)
+                if ((d > 0) & (d < desiredseparation))
+                {
+                    // Calculate vector pointing away from neighbour
+                    vector3d diff = new vector3d(loc - other.loc);
+                    diff.unitize();
+                    diff *= d;
+                    steer += diff;
+                    count += 1; // Keep track of how many
+                }
+            }
+            // Average -- divide By how many
+            if ((count > 0))
+                steer /= (double)count;
+
+            // As long as the vector is greater than 0
+            if ((steer.length > 0))
+            {
+                // Implement Reynolds: Steering = Desired - Velocity
+                steer.Unitize();
+                steer *= maxspeed;
+                steer -= vel;
+                if (steer.length > maxforce)
+                    steer = (steer / (double)steer.Length) * maxforce;
+            }
+            return steer;
+        }
+
+        // Alignment
+        // For every nearby boid in the system, calculate average velocity
+        private vector3d align(list<boid> boids, int32 particleNumber)
+        {
+            double neighbordist = aliDist[particleNumber];
+
+            Vector3d steer = new Vector3d(0, 0, 0);
+            int count = 0;
+            for (int i = 0; i <= boids.count - 1; i++)
+            {
+                boid other = boids[i];
+                double d = loc.DistanceTo(other.loc);
+
+                if ((d > 0) & (d < neighbordist))
+                {
+                    steer += other.vel;
+                    count += 1;
+                }
+            }
+            if ((count > 0))
+                steer /= (double)count;
+
+            // As long as the vector is greater than 0
+            if ((steer.Length > 0))
+            {
+                // Implement Reynolds: Steering = desired - velocity
+                steer.Unitize();
+                steer *= maxspeed;
+                steer -= vel;
+                if (steer.Length > maxforce)
+                    steer = (steer / (double)steer.Length) * maxforce;
+            }
+            return steer;
+        }
+
+        // Cohesion
+        // For the average location(i.e.center) of all nearby boids, calculate steering vector towards that location
+        private vector3d cohesion(List<boid> boids, int32 particleNumber)
+        {
+            double neighbourdist = cohDist[particleNumber];
+            vector3d sum = new vector3d(0, 0, 0); // Start with empty vector to accumulate all locations
+            int count = 0;
+            for (int i = 0; i <= boids.count - 1; i++)
+            {
+                boid other = boids[i];
+                point3d dista = new point3d(loc.X, loc.Y, loc.Z);
+                point3d distb = new point3d(other.loc.X, other.loc.Y, other.loc.z);
+                double d = distb.DistanceTo(dista);
+
+                if (((d > 0) & (d < neighbourdist)))
+                {
+                    sum += other.loc; // Add location
+                    count += 1;
+                }
+            }
+            if ((count > 0))
+            {
+                sum /= (double)count;
+                return steer(sum, false, particleNumber); // Steer towards location
+            }
+            return sum;
+        }
+
+        // Point attraction or repulsion
+        private vector3d attraction(List<boid> boids, int32 particleNumber, list<point3d> attractorPt, double dist, bool turnaroundBool, double direction)
+        {
+            double neighbourdist = dist;
+            vector3d sum = new vector3d(0, 0, 0); // Start with empty vector to accumulate all locations
+            int count = 0;
+
+            pointcloud attPtCloud = new pointcloud(attractorPt);
+            int32 closestInd = attPtCloud.ClosestPoint(loc);
+            point3d closestPt = attractorPt[closestInd];
+            double d = loc.DistanceTo(closestPt);
+
+            if (((d > 0) & (d < neighbourdist)))
+            {
+                sum += closestPt; // Add location
+                return steer(sum, turnaroundBool, particleNumber) * direction;
+            }
+            return sum;
+        }
+
+        private vector3d attractionLn(list<boid> boids, int32 particleNumber, list<curve> crvs, double maxdist, bool turnaroundBool, double direction)
+        {
+            double objdist = maxdist;
+            Vector3d sum = new Vector3d(0, 0, 0);
+            int32 count = 0;
+            for (int i = 0; i <= crvs.count - 1; i++)
+            {
+                curve crv = crvs[i];
+                double closestPtPar;
+                bool closestPtBool = crv.ClosestPoint(loc, closestPtPar, objdist);
+                if (closestPtBool)
+                {
+                    point3d ptOnCrv = crv.PointAt(closestPtPar);
+                    sum += ptOnCrv;
+                    count += 1;
+                }
+            }
+
+            if (count > 0)
+                return steer(sum, turnaroundBool, particleNumber) * direction;
+            return sum;
+        }
+
+        private vector3d acceleration(list<boid> boids, list<curve> crvs, double maxdist)
+        {
+            Vector3d steer = new Vector3d(0, 0, 0);
+            double objdist = maxdist;
+            for (int j = 0; j <= crvs.count - 1; j++)
+            {
+                curve crv = crvs[j];
+                double closestPtPar;
+                bool closestPtBool = crv.ClosestPoint(loc, closestPtPar, objdist);
+                if (closestPtBool)
+                {
+                    vector3d tangent = crv.TangentAt(closestPtPar);
+                    double dotpro = vector3d.Multiply(vel, tangent);
+
+                    if ((dotpro < 0))
+                        tangent *= -1;
+
+                    if ((dotpro > 0))
+                        tangent *= 1;
+
+                    tangent.Unitize();
+                    tangent *= maxdist;
+                    steer += tangent;
+                }
+            }
+
+            if ((steer.Length > 0))
+            {
+                // Implement Reynolds: Steering = desired - velocity
+                steer.Unitize();
+                steer *= maxspeed;
+                steer -= vel;
+                if (steer.Length > maxforce)
+                    steer = (steer / (double)steer.Length) * maxforce;
+            }
+            return steer;
+        }
+    }
+}
