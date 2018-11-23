@@ -1,0 +1,456 @@
+MultiSwarm allSwarms;             // A list containing different Swarm types of the Swarm Class
+MultiSwarm predatorSwarms;
+Swarm baseSwarm;                  // A list containing homogenous agents of the Agent Class
+Swarm predatorSwarm;              // A list containing predator agents of the Agent Class  
+Vulnerability vulnerabilityPts;   // A list containing the 'vulnerabilities' that primary Swarms are trying to fix  
+
+
+int numberOfSwarms;
+int basePopulationSize;
+PVector worldBounds = new PVector(500,500);
+float purRep_Dist;
+float colAvo_Dist, velMat_Dist, floCen_Dist;
+float colAvo_Weight, velMat_Weight, floCen_Weight;
+float attPur_Dist, purRep_Dist;
+float attract_Weight;
+
+int numVulnerability;
+
+ArrayList<ArrayList<PVector>> swarmPts;
+ArrayList<ArrayList<PVector>> predatorPts;
+ArrayList<ArrayList<PVector>> interSwarmAttractors;
+ArrayList<ArrayList<PVector>> predatorSwarmAttractors;
+ArrayList<PVector> vulnerabilityPt;
+ArrayList<Agent> allAgents;
+int[] populationSize = {10,10,10,10};
+String[] populationType = {"primary","primary","primary","predator"};
+int[] swarmPopSize = {10,10,10};
+int[] predatorPopSize = {10};
+String[][] dependencies;
+
+
+void setup() {
+  size(500, 500);
+  numberOfSwarms = swarmPopSize.length;
+  basePopulationSize = 50;
+  numVulnerability = 20;
+  purRep_Dist = 10;
+  colAvo_Dist=20;
+  velMat_Dist=20;
+  floCen_Dist=50;
+  attPur_Dist=50;
+  purRep_Dist = 25;
+  colAvo_Weight=1.5;
+  velMat_Weight=1.2;
+  floCen_Weight=1.2;
+  attract_Weight=2.1;
+  
+  swarmPts = new ArrayList<ArrayList<PVector>>();
+  predatorPts = new ArrayList<ArrayList<PVector>>();
+  interSwarmAttractors = new ArrayList<ArrayList<PVector>>();
+  predatorSwarmAttractors = new ArrayList<ArrayList<PVector>>();   
+  vulnerabilityPt = new ArrayList<PVector>();              // Attractor points that the Search_Agents seek
+  allAgents = new ArrayList<PVector>();       // List of all swarm agents for interspecies collision avoidance
+
+  allSwarms = new MultiSwarm();
+  predatorSwarms = new MultiSwarm();
+  vulnerabilityPts = new Vulnerability();
+  
+  
+  colorMode(RGB);
+  
+  setupStaticEnv(vulnerabilityPts);
+  setupSwarms();
+  setupAttractors(interSwarmAttractors);
+  
+}
+
+
+void draw() {
+  background(50);
+  allSwarms.runMultiSwarm(allAgents);
+  predatorSwarms.runMultiSwarm(allAgents);
+  vulnerabilityPts.run(allAgents);
+}
+
+void setupSwarms() {
+    for (int i=0; i<populationSize.length; i++) {
+      String speciesType = populationType[i];
+      int swarmSize = populationSize[i];
+      color swarmCol = color(random(255),random(255),random(255));
+      
+      if (speciesType.equals("primary")==true) {
+            baseSwarm = new Swarm();
+            ArrayList<PVector> sPt = new ArrayList<PVector>();
+            for (int j=0; j<swarmSize; j++) {
+              baseAgent = new Agent(i, i*100, swarmCol, 2, i);
+              baseSwarm.addAgent(baseAgent);
+              sPt.add(baseAgent.loc);
+              allAgents.add(baseAgent);
+            }
+            allSwarms.addSwarm(baseSwarm);
+            swarmPts.add(sPt);
+      }
+        else if (speciesType.equals("predator")==true) {
+          predatorSwarm = new Swarm();
+          ArrayList<PVector> pPt = new ArrayList<PVector>();
+            for (int j = 0; j < swarmSize; j++) {
+              predatorAgent = new Agent(i,i+50, swarmCol, 5, i);
+              predatorSwarm.addAgent(predatorAgent);
+              pPt.add(predatorAgent.loc);
+              allAgents.add(predatorAgent);
+            }
+            predatorSwarms.addSwarm(predatorSwarm);
+            predatorPts.add(pPt); 
+        }
+      }
+}
+
+void setupAttractors(ArrayList<ArrayList<PVector>> attractorPts) {
+    attractorPts.add(vulnerabilityPts.vulPts);  // Search_Agents are attracted to vulnerability_points
+    attractorPts.add(swarmPts.get(0));          // Resource_Agents are attracted to Search_Agents
+    attractorPts.add(predatorPts.get(0));       // Defender_Agents are attracted to Predator_Agents 
+    attractorPts.add(allAgents);                // Predator_Agents are attracted to all primarySwarm_Agents
+  }
+
+void setupStaticEnv(Vulnerability vPts) {
+  for (int i=0; i<numVulnerability; i++) {
+    PVector vulPt = new PVector(random(worldBounds.x),random(worldBounds.y));
+    vPts.addPt(vulPt);
+  }
+}
+
+// Multi Swarm Class
+
+class MultiSwarm {
+  ArrayList<Swarm> swarms;
+  
+  MultiSwarm() {
+    swarms = new ArrayList<Swarm>();
+  }
+  
+  /*
+  void runMultiSwarm() {
+  for (int i = 0; i < swarms.size(); i++) {
+    Swarm s = swarms.get(i);
+    int currentSwarmNum = i;
+    int attractorSwarmNum;
+    if (currentSwarmNum = 0) {
+      attractorSwarmNum = 1;
+    }
+    else if (currentSwarmNum = 1) {
+      attractorSwarmNum = 0;
+    }
+    s.runSwarm(currentSwarmNum, attractorSwarmNum);
+  }
+  }
+  */
+  
+  void runMultiSwarm(ArrayList<Agent> encirclingAgents) {
+    for (Swarm s : swarms) {
+    s.run(encirclingAgents);
+    }
+  }
+  
+    
+    void addSwarm(Swarm s) {
+      swarms.add(s);
+    }
+}
+
+// Swarm Class
+class Swarm {
+  ArrayList<Agent> agents;
+
+  Swarm() {
+    agents = new ArrayList<Agent>();
+  }
+
+  void run(ArrayList<Agent> encirclingAgents) {
+    runSwarm();
+    eliminate(encirclingAgents);
+  }
+  
+
+  void runSwarm() {
+    for (Agent ag : agents) {
+      ag.pilotModule(agents); 
+    }
+  }
+
+  void addAgent(Agent ag) {
+    agents.add(ag);
+  }
+  
+  void eliminate(ArrayList<Agent> encirclingAgents) {          
+    float perceptionRange = purRep_Dist*0.5;
+    int agentNum = 10;                              // Number of agents required to 'fix' vulnerability
+    for (int i=agents.size()-1; i>=0; i--) {
+      PVector pt = agents.get(i).loc;
+      int kounta = 0;
+      for (int j=0; j<encirclingAgents.size(); j++) {
+        Agent ag = encirclingAgents.get(j);
+        float dist = PVector.dist(pt, ag.loc);
+        if ((dist>0) && (dist<perceptionRange)) {
+          kounta ++;
+        }
+      }
+      if (kounta >= agentNum) {
+        agents.remove(i);
+      }
+    }
+  }
+}
+
+// Vulnerability Points Class
+class Vulnerability {
+  ArrayList<PVector> vulPts;
+  
+  Vulnerability() {
+    vulPts = new ArrayList<PVector>();
+  }
+  
+  void run(ArrayList<Agent> encirclingAgents) {
+    eliminate(encirclingAgents);
+    display();
+  }
+  
+  void addPt(PVector pt) {
+  vulPts.add(pt);
+  }
+  
+  void display() {
+      fill(0);
+      stroke(0);
+      for (int i=0; i<vulPts.size(); i++) {
+      ellipse(vulPts.get(i).x, vulPts.get(i).y, 3, 3); 
+      }
+  }
+  
+  
+  // If more than x agents encircle the vulnerability, 
+  // it is considered 'fixed' and then removed from the simulation
+  void eliminate(ArrayList<Agent> encirclingAgents) {          
+    float perceptionRange = purRep_Dist * 1.2;
+    int agentNum = 5;                              // Number of agents required to 'fix' vulnerability
+    for (int i=vulPts.size()-1; i>=0; i--) {
+      PVector pt = vulPts.get(i);
+      int kounta = 0;
+      for (int j=0; j<encirclingAgents.size(); j++) {
+        Agent ag = encirclingAgents.get(j);
+        float dist = PVector.dist(pt, ag.loc);
+        if (dist<perceptionRange) {
+          kounta ++;
+        }
+      }
+      if (kounta >= 5) {
+        vulPts.remove(i);
+      }
+    }
+  }
+
+}
+
+// Agent Class
+class Agent {
+  PVector loc;
+  PVector vel;
+  PVector acc;
+  float r;
+  float maxForce;    
+  float maxSpeed; 
+  color colour;
+  int swarmID;
+ 
+ Agent (float startX, float startY, color col, float ms, int sID) {
+   loc = new PVector(startX, startY);
+   float angle = random(TWO_PI);
+   vel = new PVector(cos(angle), sin(angle));
+   acc = new PVector(0,0);
+   r = 2.0;
+   maxSpeed = ms;
+   maxForce = 0.1;
+   colour = col;
+   swarmID = sID;
+ }
+ 
+   void pilotModule(ArrayList<Agent> agents) {
+    baseSwarm(agents);
+    flightModule();
+    reflectiveBoundary();
+    display();
+  }
+  
+    void baseSwarm(ArrayList<Agent> agents) {
+      PVector colAvo = collisionAvoidance(allAgents);   
+      PVector velMat = velocityMatch(agents);      
+      PVector floCen = flockCentering(agents);
+      PVector attract = attractorPursuit(interSwarmAttractors.get(swarmID));   
+      colAvo.mult(colAvo_Weight);
+      velMat.mult(velMat_Weight);
+      floCen.mult(floCen_Weight);
+      attract.mult(attract_Weight);
+      acc.add(colAvo);
+      acc.add(velMat);
+      acc.add(floCen);
+      acc.add(attract);
+  }
+
+    void flightModule() {
+    vel.add(acc);
+    vel.limit(maxSpeed);
+    loc.add(vel);
+    acc.mult(0);
+  }
+
+  void display() {
+    float theta = vel.heading2D() + radians(90);
+    fill(colour);
+    stroke(colour);
+    pushMatrix();
+    translate(loc.x, loc.y);
+    rotate(theta);
+    beginShape(TRIANGLES);
+    vertex(0, -r*2);
+    vertex(-r, r*2);
+    vertex(r, r*2);
+    endShape();
+    popMatrix();
+  }
+
+  void reflectiveBoundary() {
+    if (loc.x < -r) {
+      vel.x *= -1;
+    }
+    else if (loc.x > worldBounds.x + r) {
+      vel.x *= -1;
+    }
+        if (loc.y < -r) {
+      vel.y *= -1;
+    }
+    else if (loc.y > worldBounds.y + r) {
+      vel.y *= -1;
+    }
+  }
+  
+    PVector pursue(PVector target, boolean turnaround, boolean encircle) {
+      PVector desired = PVector.sub(target, loc);
+      float perceptionRange = purRep_Dist;
+      float dist = desired.mag();
+      if (dist > 0) {  
+        desired.normalize();
+        if ((turnaround = true) && (dist < perceptionRange)) {
+          desired.mult(-1);
+          desired.mult(dist);
+        }
+        if ((encricle = true) && (dist < perceptionRange)) {
+          desired.rotate(HALF_PI);
+        }
+        else {
+      desired.mult(maxSpeed);
+        }
+      PVector pilot = PVector.sub(desired, vel);
+      if (pilot.mag() > maxForce) {
+        pilot.normalize();
+        pilot.mult(maxForce);
+      }
+      else {
+        pilot = new PVector(0,0);
+      }
+      return pilot;
+    }
+  }
+  
+    PVector collisionAvoidance (ArrayList<Agent> agents) {
+    float perceptionRange = colAvo_Dist;
+    PVector pilot = new PVector(0, 0, 0);
+    int kounta = 0;
+    for (Agent otherAgent : agents) {
+      float dist = PVector.dist(loc, otherAgent.loc);
+      if ((dist > 0) && (dist < perceptionRange)) {
+        PVector vecDiff = PVector.sub(loc, otherAgent.loc);
+        vecDiff.normalize();
+        vecDiff.div(dist);        
+        pilot.add(vecDiff);
+        kounta += 1;            
+      }
+    }
+    if (kounta > 0) {
+      pilot.div((float)kounta);
+    }
+    if (pilot.mag() > 0) {
+      pilot.normalize();
+      pilot.mult(maxSpeed);
+      pilot.sub(vel);
+      pilot.limit(maxForce);
+    }
+    return pilot;
+  }
+  
+  
+  PVector velocityMatch (ArrayList<Agent> agents) {
+    float perceptionRange = velMat_Dist;
+    PVector aggregate = new PVector(0, 0);
+    int kounta = 0;
+    for (Agent otherAgent : agents) {
+      float dist = PVector.dist(loc, otherAgent.loc);
+      if ((dist > 0) && (dist < perceptionRange)) {
+        aggregate.add(otherAgent.vel);
+        kounta++;
+      }
+    }
+    if (kounta > 0) {
+      aggregate.div((float)kounta);
+      aggregate.normalize();
+      aggregate.mult(maxSpeed);
+      PVector pilot = PVector.sub(aggregate, vel);
+      pilot.limit(maxForce);
+      return pilot;
+    } 
+    else {
+      return new PVector(0, 0);
+    }
+  }
+
+  PVector flockCentering (ArrayList<Agent> agents) {
+    float perceptionRange = floCen_Dist;
+    PVector aggregate = new PVector(0, 0);   
+    int kounta = 0;
+    for (Agent otherAgent : agents) {
+      float dist = PVector.dist(loc, otherAgent.loc);
+      if ((dist > 0) && (dist < perceptionRange)) {
+        aggregate.add(otherAgent.loc); 
+        kounta++;
+      }
+    }
+    if (kounta > 0) {
+      aggregate.div(kounta);
+      return pursue(aggregate, false, false); 
+    } 
+    else {
+      return aggregate;
+    }
+  }
+  
+  PVector attractorPursuit (ArrayList<PVector> attractors) {
+    float perceptionRange = attPur_Dist;
+    PVector aggregate = new PVector(0, 0);   
+    int kounta = 0;
+
+    for (PVector closestPt : attractors) {                // Find closest point in list of attractors and move towards it
+      float dist = PVector.dist(loc, closestPt);
+      if ((dist > 0) && (dist < perceptionRange)) {
+          aggregate.add(closestPt); 
+          kounta ++;
+      }
+    }
+    if (kounta > 0) {
+      aggregate.div(kounta);
+      return pursue(aggregate, false, true);
+       }
+    else {
+      return new PVector(0,0);
+        }
+  }
+  
+}
