@@ -1,0 +1,289 @@
+
+    private void RunScript(List<object> variables, object y, int stepTime, bool reset, object run, double numberParticles, int numberIterations, ref object best_Fitness, ref object best_Position, ref object ini_Iterations, ref object run_Iterations, ref object new_velocity, ref object new_Position, ref object curr_velocity, ref object curr_position, ref object curr_bestPos, ref object best_globalPos, ref object Random1, ref object Random2)
+    {
+        if (reset)
+        {
+            dimensions = SlidersFunc().count;
+            counta1 = -1;
+            counta2 = -1;
+            swarm.clear();
+            bestGlobalFitness = double.MaxValue;
+            bestGlobalPosition.Clear();
+            nps.clear(); nvs.clear();
+            r1s.clear(); r2s.clear();
+            cvs.clear(); cps.clear();
+            cbp.clear(); bgp.clear();
+            _newPositionOutput.clear();
+        }
+
+        if (run)
+        {
+            counta1 += 1;
+
+            // Run initialisation
+            if (counta1 >= 0 & counta1 < numberParticles)
+            {
+                List<double> randomPosition = new List<double>();
+                grasshopperdocument.ScheduleSolution(stepTime, randomisePositions);
+
+                for (int32 j = 0; j <= dimensions - 1; j++)
+                {
+                    double randPos = checkInputVal(0)[j];
+                    randomPosition.add(randPos);
+                }
+
+                double fitness = checkInputVal(1)[0];
+
+                List<double> randomVelocity = new List<double>();
+                for (int32 j = 0; j <= dimensions - 1; j++)
+                {
+                    double lo = -1 * math.Abs(maxX - minX);
+                    double hi = math.Abs(maxX - minX);
+                    double randVel = (hi - lo) * ran.NextDouble() + lo;
+                    randomVelocity.add(randVel);
+                }
+
+                Agent swarmAgent = new Agent(randomPosition, fitness, randomVelocity, randomPosition, fitness);
+
+                if (swarmAgent.fitness < bestGlobalFitness)
+                {
+                    bestGlobalFitness = swarmAgent.fitness;
+                    bestGlobalPosition = swarmAgent.position;
+                }
+
+                swarm.add(swarmAgent);
+            }
+
+            // Run optimisation
+            if ((counta1 >= numberParticles & counta1 <= numberParticles * numberIterations + 1))
+            {
+                counta2 += 1;
+                i = counta2 % numberParticles;
+
+                agent currAgent = swarm[i];
+                list<double> newVelocity = new list<double>();
+
+                for (int32 j = 0; j <= currAgent.velocity.count - 1; j++)
+                {
+                    r1 = ran.NextDouble();
+                    r2 = ran.Nextdouble();
+                    double newVel = (w * currAgent.velocity[j]) + (c1 * r1 * (currAgent.bestPosition[j]
+                      - currAgent.position[j])) + (c2 * r2 * (bestGlobalPosition[j] - currAgent.position[j]));
+
+                    if (newVel < minV)
+                        newVel = minV;
+                    else if (newVel > maxV)
+                        newVel = maxV;
+
+                    newVelocity.add(newVel);
+                }
+
+                currAgent.velocity = newVelocity;
+
+                _currAgent = currAgent;
+                _currentPosition = currAgent.position;
+                _newVelocity = newVelocity;
+                grasshopperdocument.ScheduleSolution(stepTime, updatePositions);
+
+                List<double> newPosition = new List<double>();
+                newPosition = _newPosition;
+                _newPositionOutput = newPosition;
+
+
+
+                // For j As int32 = 0 To dimensions - 1
+                // Dim newPos As Double = checkInputVal(0)(j)
+                // newPosition.add(newPos)
+                // '          nps.add(newPos)
+                // Next
+
+                currAgent.position = newPosition;
+
+                double newFitness = checkInputVal(1)[0];
+                currAgent.fitness = newFitness;
+
+                if (newFitness < currAgent.bestFitness)
+                {
+                    currAgent.bestPosition = newPosition;
+                    currAgent.bestFitness = newFitness;
+                }
+
+                if (newFitness < bestGlobalFitness)
+                {
+                    bestGlobalPosition = newPosition;
+                    bestGlobalFitness = newFitness;
+                }
+            }
+        }
+
+        best_Fitness = bestGlobalFitness;
+        best_Position = bestGlobalPosition;
+        ini_Iterations = counta1;
+        run_Iterations = counta2;
+        new_velocity = _newPositionOutput;
+        new_position = nps;
+        curr_velocity = cvs;
+        curr_position = cps;
+        curr_bestPos = cbp;
+        best_globalPos = bgp;
+        Random1 = r1s;
+        Random2 = r2s;
+    }
+
+    // <Custom additional code> 
+    private random ran = new random(0);
+
+    private int32 counta1 = new int32();
+    private int32 counta2 = new int32();
+    private int32 dimensions = new int32();
+    private int32 i = new int32();
+
+    private list<agent> swarm = new list<agent>();
+    private list<double> bestGlobalPosition = new list<double>();
+    private double bestGlobalFitness = new double();
+
+    private list<double> cvs = new list<double>();
+    private list<double> nvs = new list<double>();
+    private list<double> cps = new list<double>();
+    private list<double> nps = new list<double>();
+    private list<double> cbp = new list<double>();
+    private list<double> bgp = new list<double>();
+
+    private double minX = 0;
+    private double maxX = 10;
+
+    private double minV = minX;
+    private double maxV = maxX;
+
+    private double w = 0.729;
+    private double c1 = 1.49445;
+    private double c2 = 1.49445;
+    private double r1 = new double(), r2 = new double();
+
+    private list<double> r1s = new list<double>();
+    private list<double> r2s = new list<double>();
+
+    private Agent _currAgent;
+    private list<double> _currentPosition;
+    private list<double> _newVelocity;
+    private list<double> _newPosition = new list<double>();
+    private list<double> _newPositionOutput = new list<double>();
+
+    public void getSliderMax()
+    {
+        grasshopper.Kernel.Special.GH_NumberSlider slider = SlidersFunc()[0];
+        int32 type = slider.Slider.Type;
+        if (type == 0)
+        {
+            double max = slider.slider.maximum;
+            return max;
+        }
+        else
+        {
+            int32 max = System.Convert.ToInt32(slider.slider.maximum);
+            return max;
+        }
+    }
+
+    public void getSliderMin()
+    {
+        grasshopper.Kernel.Special.GH_NumberSlider slider = SlidersFunc()[0];
+        int32 type = slider.Slider.Type;
+        if (type == 0)
+        {
+            double min = slider.slider.minimum;
+            return min;
+        }
+        else
+        {
+            int32 min = System.Convert.ToInt32(slider.slider.minimum);
+            return min;
+        }
+    }
+
+    public void randomisePositions(GH_document doc)
+    {
+        foreach (grasshopper.Kernel.Special.GH_NumberSlider slider in SlidersFunc())
+        {
+            double lo = minX;
+            double hi = maxX;
+
+            slider.Slider.RaiseEvents = false;
+            double range = hi - lo;
+            double randPos = range * ran.NextDouble();
+            slider.Slider.Value = randPos;
+            slider.slider.raiseevents = true;
+
+            slider.ExpireSolution(false);
+        }
+    }
+
+    public void updatePositions(GH_document doc)
+    {
+        Agent cAgent = _currAgent;
+        List<double> currentPosition = _currentPosition;
+        List<double> updateVelocity = _newVelocity;
+        int32 i = -1;
+        foreach (grasshopper.Kernel.Special.GH_NumberSlider slider in SlidersFunc())
+        {
+            i += 1;
+            slider.Slider.RaiseEvents = false;
+            double updatePos = currentPosition[i] + updateVelocity[i];
+
+            if (updatePos < minX)
+                updatePos = minX;
+            else if (updatePos > maxX)
+                updatePos = maxX;
+
+            _newPosition.add(updatePos);
+
+            slider.Slider.Value = updatePos;
+            slider.Slider.RaiseEvents = true;
+            slider.ExpireSolution(false);
+        }
+    }
+
+    private list<double> checkInputVal(Int32 id)
+    {
+        list<double> paramVals = new list<double>();
+        foreach (IGH_param param in component.Params.Input(id).sources)
+        {
+            object paramData = param.VolatileData.AllData(true).ElementAtOrDefault(0);
+            double paramVal = paramData.value;
+            paramVals.add(paramVal);
+        }
+        return paramVals;
+    }
+
+    private list<grasshopper.kernel.special.GH_Numberslider> SlidersFunc()
+    {
+        list<Grasshopper.kernel.special.GH_numberslider> inputSliders = new list<Grasshopper.kernel.special.GH_numberslider>();
+        foreach (IGH_param input in component.Params.Input(0).sources)
+        {
+            var slider = input as grasshopper.Kernel.special.GH_NumberSlider;
+            if (slider != null)
+                inputSliders.add(slider);
+        }
+        return inputSliders;
+    }
+
+
+    class Agent
+    {
+        public list<double> position;
+        public double fitness;
+        public list<double> velocity;
+
+        public List<double> bestPosition;
+        public double bestFitness;
+
+        public Agent(list<double> _position, double _fitness, list<double> _velocity, list<double> _bestPosition, double _bestFitness)
+        {
+            position = _position;
+            fitness = _fitness;
+            velocity = _velocity;
+            bestPosition = _bestPosition;
+            bestFitness = _bestFitness;
+        }
+    }
+}
